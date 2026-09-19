@@ -1,0 +1,21 @@
+[project]
+name = "rag-faiss"
+version = "0.1.0"
+description = "A simple Retrieval-Augmented Generation application using FAISS"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "faiss-cpu>=1.8.0",
+    "langchain>=0.1.0",
+    "langchain-community>=0.0.10",
+    "sentence-transformers>=2.5.0",
+    "openai>=1.10.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "pypdf>=4.0.0",
+    "python-dotenv>=1.0.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
