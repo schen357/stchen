@@ -1,5 +1,5 @@
 [project]
-name = "rag-faiss"
+name = "rag"
 version = "0.1.0"
 description = "A simple Retrieval-Augmented Generation application using FAISS"
 readme = "README.md"
@@ -14,6 +14,11 @@ dependencies = [
     "uvicorn>=0.28.0",
     "pypdf>=4.0.0",
     "python-dotenv>=1.0.1",
+    "transformers>=5.17.0",
+    "ollama>=0.6.2",
+    "torchvision>=0.29.0",
+    "pillow>=12.3.0",
+    "accelerate>=1.15.0",
 ]
 
 [build-system]
