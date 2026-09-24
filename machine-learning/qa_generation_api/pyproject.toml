@@ -1,0 +1,14 @@
+[project]
+name = "qa_generation_api"
+version = "0.1.0"
+description = "generate q&a set using api"
+readme = "README.md"
+requires-python = ">=3.11, <=3.13"
+dependencies = [
+    "anthropic>=1.8.0",
+    "pandas>=3.0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
