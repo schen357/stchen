@@ -9,6 +9,7 @@ dependencies = [
     "fastparquet>=2026.5.0",
     "pandas>=3.0.6",
     "pyarrow>=25.0.1",
+    "pytest>=9.1.1",
 ]
 
 [build-system]

@@ -6,41 +6,59 @@ import pandas as pd
 import anthropic
 
 
-if __name__ == "__main__":
-    # Initialize the Anthropic client (reads ANTHROPIC_API_KEY from your environment variables)
-    client = anthropic.Anthropic()
+PACKAGE_DIR = Path(__file__).parent
+PROCESSES_PATH = PACKAGE_DIR / "flowchart_instructions.pkl"
+MODEL = "claude-sonnet-5"
+MAX_TOKENS = 4000
 
-    # Assumes that pickle file is available for reading
-    with open(Path(__file__).parent / "flowchart_instructions.pkl", 'rb') as file:
-        processes_list = pickle.load(file)
-
-    # Set instructions for Claude to format the output clearly
-    system_prompt = """
+# Set instructions for Claude to format the output clearly
+SYSTEM_PROMPT = """
     You are creating a question set that can be answered by the reference process. Write as many relevant questions as you can think of. Your output should be a list of questions for the process. Only list the questions, separated by a pipe delimiter | for each new question.
     """
 
+
+def load_processes(path: Path = PROCESSES_PATH) -> list[str]:
+    # Assumes that pickle file is available for reading
+    with open(path, 'rb') as file:
+        return pickle.load(file)
+
+
+def parse_questions(message) -> list[str]:
+    try:
+        questions = message.content[-1].text
+        return questions.split("|")
+    except:
+        raise ValueError(f"### Cannot parse: {message.content}")
+
+
+def generate_question_set(client, processes_list) -> pd.DataFrame:
     question_set = pd.DataFrame()
     for process in processes_list:
         # Call the Claude API
         message = client.messages.create(
-            model="claude-sonnet-5",
-            max_tokens=4000,
-            system=system_prompt,
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            system=SYSTEM_PROMPT,
             messages=[
                 {
-                    "role": "user", 
+                    "role": "user",
                     "content": f"Please create the question set of relevant questions that can be answered by the following process: {process}"
                 }
             ]
         )
 
-        # Print the generated Q&A sets
-        try:
-            questions = message.content[-1].text
-            question_list = questions.split("|")
-            question_mapping = pd.DataFrame({"question": question_list, "process": [process] * len(question_list)}) 
-            question_set = pd.concat([question_set, question_mapping], ignore_index = True) 
-        except:
-            raise ValueError(f"### Cannot parse: {message.content}")
+        question_list = parse_questions(message)
+        question_mapping = pd.DataFrame({"question": question_list, "process": [process] * len(question_list)})
+        question_set = pd.concat([question_set, question_mapping], ignore_index = True)
+
+    return question_set
+
+
+if __name__ == "__main__":
+    # Initialize the Anthropic client (reads ANTHROPIC_API_KEY from your environment variables)
+    client = anthropic.Anthropic()
+
+    processes_list = load_processes()
+    question_set = generate_question_set(client, processes_list)
 
     question_set.to_parquet("qa_generation_api/question_set.pq")
