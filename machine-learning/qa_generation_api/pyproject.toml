@@ -6,7 +6,9 @@ readme = "README.md"
 requires-python = ">=3.11, <=3.13"
 dependencies = [
     "anthropic>=1.8.0",
+    "fastparquet>=2026.5.0",
     "pandas>=3.0.6",
+    "pyarrow>=25.0.1",
 ]
 
 [build-system]
