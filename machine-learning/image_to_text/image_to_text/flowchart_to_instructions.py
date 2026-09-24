@@ -24,11 +24,6 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 MODEL_ID = "Qwen/Qwen2.5-VL-3B-Instruct"
 DEVICE = "mps"
 
-def load_model(model_id:str = MODEL_ID):
-    
-    return model, processor
-
-
 def image_paths(split_dir: Path = TRAIN_DIR) -> list[Path]:
     """Absolute paths to every image in a split, sorted by filename."""
     if not split_dir.is_dir():
@@ -39,7 +34,10 @@ def image_paths(split_dir: Path = TRAIN_DIR) -> list[Path]:
     )
 
 
-def image_to_instructions(model, processor, image_filepaths: str, prompt_text: str):
+def image_to_instructions(model, processor, image_filepaths: list[Path], prompt_text: str):
+    if not image_filepaths:
+        return []
+
     # 1. Open the image file
     images = []
     for image_path in image_filepaths:
@@ -50,29 +48,31 @@ def image_to_instructions(model, processor, image_filepaths: str, prompt_text: s
             print(f"Error: Image file not found at {image_path}")
             return
 
-    # 2. Format the chat prompt template expected by Qwen2.5-VL
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image", "image": image},
-                {"type": "text", "text": prompt_text}
-            ]
-        }
-    ]
+    # 2. Format one chat prompt per image, as expected by Qwen2.5-VL
+    text_prompts = []
+    for image in images:
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": prompt_text}
+                ]
+            }
+        ]
 
-    # 3. Apply standard chat formatting template
-    text_prompt = processor.apply_chat_template(
-        messages, 
-        tokenize=False, 
-        add_generation_prompt=True
-    )
+        # 3. Apply standard chat formatting template
+        text_prompts.append(processor.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        ))
 
 
     # 4. Preprocess image and text inputs for the CPU
     print("Preparing visual and text tokens")
     inputs = processor(
-        text=[text_prompt] * len(images), 
+        text=text_prompts,
         images=images, 
         padding=True, 
         return_tensors="pt"
@@ -105,7 +105,7 @@ def image_to_instructions(model, processor, image_filepaths: str, prompt_text: s
 
     return output_text
     
-
+ 
 # --- Demonstration Usage ---
 if __name__ == "__main__":
     print(f"dataset:  {DATASET_DIR}")

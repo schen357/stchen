@@ -1,2 +1,4 @@
 result*.txt
 env/
+__pycache__/
+*.py[cod]
