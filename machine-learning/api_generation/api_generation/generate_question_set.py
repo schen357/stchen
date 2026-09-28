@@ -6,9 +6,27 @@ import pandas as pd
 import anthropic
 import json
 
+from api_generation.utils import call_anthropic_api
+
 
 PACKAGE_DIR = Path(__file__).parent
 PROCESSES_PATH = PACKAGE_DIR / "flowchart_instructions.pkl"
+QUESTION_SET_PATH = PACKAGE_DIR / "question_set.pq"
+
+# Set instructions for Claude to format the output clearly
+SYSTEM_PROMPT = """
+    You are creating a question set that can be answered by the reference process. Provide a short title for the process, and write as many relevant questions as you can think of.
+    Your output must be a valid JSON payload in the following format:
+
+    {
+        "process_title": "<A short, unique title that summarizes what the process is. Example: 'Order Quality Assurance'>",
+        "question_set": [
+            "First question here?",
+            "Second question here?",
+            "Third question here?"
+        ]
+    }
+    """
 
 
 def load_processes(path: Path = PROCESSES_PATH) -> list[str]:
@@ -17,47 +35,34 @@ def load_processes(path: Path = PROCESSES_PATH) -> list[str]:
         return pickle.load(file)
 
 
-def parse_questions(message) -> list[str]:
+def parse_questions(message) -> tuple[str, list[str]]:
     try:
-        payload = message.content[-1].text.replace("json\n", "").replace("```","")
+        payload = message.content[-1].text.strip()
+        # Claude sometimes wraps the JSON in a ```json ... ``` markdown fence
+        payload = payload.removeprefix("```json").removeprefix("```").removesuffix("```")
         payload_json = json.loads(payload)
         title = payload_json["process_title"]
         question_set = payload_json["question_set"]
         return title, question_set
-    except:
-        raise ValueError(f"### Cannot parse: {message.content}")
+    except (IndexError, AttributeError, KeyError, TypeError, json.JSONDecodeError) as e:
+        raise ValueError(f"### Cannot parse: {message.content}") from e
 
 
 def generate_question_set(client, processes_list) -> pd.DataFrame:
-    question_set = pd.DataFrame()
-    # Set instructions for Claude to format the output clearly
-    system_prompt = """
-        You are creating a question set that can be answered by the reference process. Provide a short title for the process, and write as many relevant questions as you can think of. 
-        Your output must be a valid JSON payload in the following format:
-
-        {
-            "process_title": "<A short, unique title that summarizes what the process is. Example: 'Order Quality Assurance'>",
-            "question_set": [
-                "First question here?",
-                "Second question here?",
-                "Third question here?"
-            ]
-        }
-        """
-    message_content = f"Please create the question set of relevant questions that can be answered by the following process: {process}"
+    rows = []
     for process in processes_list:
+        user_message = f"Please create the question set of relevant questions that can be answered by the following process: {process}"
         # Call the Claude API
-        message = call_anthropic_api(client, system_prompt, user_message)
+        message = call_anthropic_api(client, SYSTEM_PROMPT, user_message)
 
         title, question_list = parse_questions(message)
-        question_mapping = pd.DataFrame({
-            "process_title": [title],
-             "process": [process],
-            "question_set": [question_list]
+        rows.append({
+            "process_title": title,
+            "process": process,
+            "question_set": question_list
         })
-        question_set = pd.concat([question_set, question_mapping], ignore_index = True)
 
-    return question_set
+    return pd.DataFrame(rows, columns=["process_title", "process", "question_set"])
 
 
 if __name__ == "__main__":
@@ -67,4 +72,4 @@ if __name__ == "__main__":
     processes_list = load_processes()
     question_set = generate_question_set(client, processes_list)
 
-    question_set.to_parquet("qa_generation_api/question_set.pq")
+    question_set.to_parquet(QUESTION_SET_PATH)
