@@ -1,5 +1,5 @@
 [project]
-name = "qa_generation_api"
+name = "api_generation"
 version = "0.1.0"
 description = "generate q&a set using api"
 readme = "README.md"
